@@ -36,3 +36,6 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           docker push sidduthatikanti93/pyapp:latest
+      - name: runnign the instance
+        run : | 
+         docker run -d  -p 8000:8000 sidduthatikanti93/pyapp
