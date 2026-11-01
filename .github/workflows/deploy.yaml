@@ -1,4 +1,5 @@
-name: Build and Push Docker Image
+
+name: Build and Push Flask Docker Image
 
 on:
   push:
@@ -7,6 +8,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -19,42 +21,18 @@ jobs:
       - name: Check Docker version
         run: docker --version
 
+      - name: Build Docker image
+        run: |
+          docker build -t sidduthatikanti93/pyapp:latest .
+
       - name: Login to Docker Hub
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Create Docker Hub repository
-        if: github.event_name == 'push'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push image to Docker Hub
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          STATUS=$(curl -s -o response.json -w "%{http_code}" \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -H "Authorization: JWT $(curl -s -X POST \
-              https://hub.docker.com/v2/users/login/ \
-              -H "Content-Type: application/json" \
-              -d "{\"username\":\"$DOCKERHUB_USERNAME\",\"password\":\"$DOCKERHUB_TOKEN\"}" \
-              | python3 -c "import sys,json; print(json.load(sys.stdin).get('token',''))")" \
-            -d '{"name":"pyapp","is_private":false}' \
-            https://hub.docker.com/v2/repositories/"$DOCKERHUB_USERNAME"/)
-
-          if [ "$STATUS" = "201" ] || [ "$STATUS" = "200" ]; then
-            echo "Docker Hub repository created."
-          elif [ "$STATUS" = "409" ] || [ "$STATUS" = "400" ]; then
-            echo "Repository may already exist; continuing."
-          else
-            echo "Repository creation returned HTTP $STATUS"
-            cat response.json
-            exit 1
-          fi
-
-      - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/pyapp:latest .
-
-      - name: Push Docker image
-        if: github.event_name == 'push'
-        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/pyapp:latest
+          docker push sidduthatikanti93/pyapp:latest
